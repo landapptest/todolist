@@ -17,7 +17,6 @@ class SubjectTimerProvider with ChangeNotifier {
   // 진행상황 계산 (progress)
   double get progress {
     if (_elapsedTimes.isEmpty) return 0.0;
-    // Custom logic for progress calculation can go here
     return 1.0;
   }
 
@@ -33,7 +32,7 @@ class SubjectTimerProvider with ChangeNotifier {
     if (savedTimesJson != null) {
       final savedTimes = json.decode(savedTimesJson) as Map<String, dynamic>;
       savedTimes.forEach((subjectName, elapsedTime) {
-        _timers[subjectName] = Stopwatch();
+        _timers[subjectName] = Stopwatch(); // 타이머 초기화
         _elapsedTimes[subjectName] = elapsedTime;
       });
     }
@@ -56,7 +55,7 @@ class SubjectTimerProvider with ChangeNotifier {
       final stopwatch = _timers[subjectName]!;
       if (!stopwatch.isRunning) {
         stopwatch.start();
-        _updateTimers[subjectName] = Timer.periodic(
+        _updateTimers[subjectName] ??= Timer.periodic(
           const Duration(seconds: 1),
               (_) => _updateElapsedTime(subjectName),
         );
@@ -72,6 +71,7 @@ class SubjectTimerProvider with ChangeNotifier {
       if (stopwatch.isRunning) {
         stopwatch.stop();
         _updateTimers[subjectName]?.cancel();
+        _updateTimers.remove(subjectName);
         _saveTimers();
         notifyListeners();
       }
