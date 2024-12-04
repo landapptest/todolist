@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import 'SujPopup.dart';
 import 'todoPopup.dart';
 import 'footer.dart';
-import 'dart:async';
 import 'SubjectTimerProvider.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -17,16 +16,11 @@ class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0; // 현재 선택된 탭 인덱스
   bool _showTodoList = false; // To-Do List 화면 여부
   String _totalElapsedTime = '00:00:00'; // 총 시간
-  List<String> _subjects = []; // 과목 리스트
+  List<String> _todoList = ["To-do1", "To-do2", "To-do3"]; // To-Do 리스트
 
   @override
   void initState() {
     super.initState();
-    final subjectTimerProvider =
-    Provider.of<SubjectTimerProvider>(context, listen: false);
-
-    // 기존 데이터 가져오기
-    _subjects = subjectTimerProvider.subjects;
     _updateTotalTime();
   }
 
@@ -34,32 +28,10 @@ class _HomeScreenState extends State<HomeScreen> {
   void dispose() {
     final subjectTimerProvider =
     Provider.of<SubjectTimerProvider>(context, listen: false);
-
-    // 화면 전환 시 타이머 정리
-    for (var subject in _subjects) {
-      subjectTimerProvider.stopTimer(subject);
+    for (var subject in subjectTimerProvider.subjects) {
+      subjectTimerProvider.stopTimer(subject); // 타이머 정리
     }
     super.dispose();
-  }
-
-  // 탭 선택 이벤트
-  void _onTabSelected(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
-  }
-
-  // 시간을 형식화하는 메서드
-  String _formatTime(int milliseconds) {
-    int seconds = (milliseconds / 1000).truncate();
-    int minutes = (seconds / 60).truncate();
-    int hours = (minutes / 60).truncate();
-
-    String hoursStr = (hours % 60).toString().padLeft(2, '0');
-    String minutesStr = (minutes % 60).toString().padLeft(2, '0');
-    String secondsStr = (seconds % 60).toString().padLeft(2, '0');
-
-    return '$hoursStr:$minutesStr:$secondsStr';
   }
 
   // 총 시간 업데이트
@@ -85,58 +57,76 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  // 특정 과목 타이머 시작
-  void _startSubjectTimer(int index) {
-    final subjectName = _subjects[index];
-    final subjectTimerProvider =
-    Provider.of<SubjectTimerProvider>(context, listen: false);
+  // 시간을 형식화하는 메서드
+  String _formatTime(int milliseconds) {
+    int seconds = (milliseconds / 1000).truncate();
+    int minutes = (seconds / 60).truncate();
+    int hours = (minutes / 60).truncate();
 
-    subjectTimerProvider.startTimer(subjectName);
-    _updateTotalTime();
-  }
+    String hoursStr = (hours % 60).toString().padLeft(2, '0');
+    String minutesStr = (minutes % 60).toString().padLeft(2, '0');
+    String secondsStr = (seconds % 60).toString().padLeft(2, '0');
 
-  // 특정 과목 타이머 중지
-  void _stopSubjectTimer(int index) {
-    final subjectName = _subjects[index];
-    final subjectTimerProvider =
-    Provider.of<SubjectTimerProvider>(context, listen: false);
-
-    subjectTimerProvider.stopTimer(subjectName);
-    _updateTotalTime();
+    return '$hoursStr:$minutesStr:$secondsStr';
   }
 
   // 과목 팝업 띄우기 메서드
   void _showPopup() {
+    final subjectTimerProvider =
+    Provider.of<SubjectTimerProvider>(context, listen: false);
     showDialog(
       context: context,
       builder: (context) {
         return PopupScreen(
-          subjects: _subjects,
+          subjects: subjectTimerProvider.subjects,
           onDeleteSubject: (int index) {
-            final subjectTimerProvider =
-            Provider.of<SubjectTimerProvider>(context, listen: false);
-
             setState(() {
-              subjectTimerProvider.resetTimer(_subjects[index]);
-              _subjects.removeAt(index);
+              subjectTimerProvider.resetTimer(
+                  subjectTimerProvider.subjects[index]);
+              subjectTimerProvider.deleteSubject(index);
             });
             _updateTotalTime();
           },
           onAddSubject: (String newSubject) {
-            final subjectTimerProvider =
-            Provider.of<SubjectTimerProvider>(context, listen: false);
-
             setState(() {
-              _subjects.add(newSubject);
               subjectTimerProvider.addSubject(newSubject);
             });
           },
           onEditSubject: (int index, String newName) {
-            if (index >= 0 && index < _subjects.length) {
-              setState(() {
-                _subjects[index] = newName;
-              });
-            }
+            setState(() {
+              subjectTimerProvider.editSubject(index, newName);
+            });
+          },
+        );
+      },
+    );
+  }
+
+  // To-Do 팝업 띄우기 메서드
+  void _showTodoPopup() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return tdPopupScreen(
+          todoList: List.from(_todoList),
+          onAddTodo: (newTodo) {
+            setState(() {
+              _todoList.add(newTodo); // To-Do 추가
+            });
+          },
+          onEditTodo: (index, updatedTodo) {
+            setState(() {
+              if (index >= 0 && index < _todoList.length) {
+                _todoList[index] = updatedTodo; // To-Do 수정
+              }
+            });
+          },
+          onDeleteTodo: (index) {
+            setState(() {
+              if (index >= 0 && index < _todoList.length) {
+                _todoList.removeAt(index); // To-Do 삭제
+              }
+            });
           },
         );
       },
@@ -145,13 +135,13 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final subjectTimerProvider = Provider.of<SubjectTimerProvider>(context);
     return Scaffold(
       backgroundColor: Colors.black,
       body: SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.all(16.0),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               // 상단 타이머 영역
               Container(
@@ -192,82 +182,151 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  Consumer<SubjectTimerProvider>(
-                    builder: (context, provider, child) {
-                      final progress = provider.progress;
-                      return Stack(
-                        children: [
-                          Container(
-                            height: 40,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(20),
-                              color: Colors.grey[700],
+                  Stack(
+                    children: [
+                      Container(
+                        height: 40,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(20),
+                          color: Colors.grey[700],
+                        ),
+                      ),
+                      Container(
+                        height: 40,
+                        width: MediaQuery.of(context).size.width *
+                            subjectTimerProvider.progress,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(20),
+                          color: const Color.fromRGBO(80, 255, 53, 1),
+                        ),
+                        alignment: Alignment.centerRight,
+                        child: Padding(
+                          padding: const EdgeInsets.only(right: 8.0),
+                          child: Text(
+                            "${(subjectTimerProvider.progress * 100).toStringAsFixed(0)}%",
+                            style: const TextStyle(
+                              color: Colors.black,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
-                          Container(
-                            height: 40,
-                            width: MediaQuery.of(context).size.width * progress,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(20),
-                              color: const Color.fromRGBO(80, 255, 53, 1),
-                            ),
-                            alignment: Alignment.centerRight,
-                            child: Padding(
-                              padding: const EdgeInsets.only(right: 8.0),
-                              child: Text(
-                                "${(progress * 100).toStringAsFixed(0)}%",
-                                style: const TextStyle(
-                                  color: Colors.black,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      );
-                    },
+                        ),
+                      ),
+                    ],
                   ),
                   const Divider(color: Colors.greenAccent, thickness: 1),
                 ],
               ),
-              _buildSubjectList(),
+
+              // 과목 리스트 or To-Do List
+              _showTodoList ? _buildTodoList() : _buildSubjectList(),
+
+              // 전환 버튼
+              ElevatedButton(
+                onPressed: () {
+                  setState(() {
+                    _showTodoList = !_showTodoList;
+                  });
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.grey[800],
+                ),
+                child: Text(
+                  _showTodoList ? "과목 보기" : "To-Do 보기",
+                  style: const TextStyle(color: Colors.white),
+                ),
+              ),
             ],
           ),
         ),
       ),
       bottomNavigationBar: Footer(
         selectedIndex: _selectedIndex,
-        onTabSelected: _onTabSelected,
+        onTabSelected: (index) {
+          setState(() {
+            _selectedIndex = index;
+          });
+        },
       ),
     );
   }
 
+  // 과목 리스트
   Widget _buildSubjectList() {
+    final subjectTimerProvider =
+    Provider.of<SubjectTimerProvider>(context, listen: true);
     return ListView.builder(
       shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: _subjects.length,
+      itemCount: subjectTimerProvider.subjects.length,
       itemBuilder: (context, index) {
-        final subjectName = _subjects[index];
+        final subjectName = subjectTimerProvider.subjects[index];
         final elapsedTime =
-            Provider.of<SubjectTimerProvider>(context).elapsedTimes[subjectName] ??
-                "00:00:00";
+            subjectTimerProvider.elapsedTimes[subjectName] ?? "00:00:00";
 
         return ListTile(
-          title: Text(subjectName),
+          title: Text(subjectName, style: const TextStyle(color: Colors.white)),
           subtitle: Text("Elapsed: $elapsedTime"),
           trailing: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               IconButton(
-                icon: const Icon(Icons.play_arrow),
-                onPressed: () => _startSubjectTimer(index),
+                icon: const Icon(Icons.play_arrow, color: Colors.greenAccent),
+                onPressed: () {
+                  subjectTimerProvider.startTimer(subjectName);
+                },
               ),
               IconButton(
-                icon: const Icon(Icons.pause),
-                onPressed: () => _stopSubjectTimer(index),
+                icon: const Icon(Icons.pause, color: Colors.red),
+                onPressed: () {
+                  subjectTimerProvider.stopTimer(subjectName);
+                },
               ),
             ],
+          ),
+        );
+      },
+    );
+  }
+
+  // To-Do 리스트
+  Widget _buildTodoList() {
+    return ListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: _todoList.length,
+      itemBuilder: (context, index) {
+        return GestureDetector(
+          onTap: () {
+            setState(() {
+              _todoList[index] = _todoList[index].contains("(완료)")
+                  ? _todoList[index].replaceAll(" (완료)", "")
+                  : "${_todoList[index]} (완료)";
+            });
+          },
+          child: Container(
+            margin: const EdgeInsets.symmetric(vertical: 8.0),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(10),
+              color: _todoList[index].contains("(완료)")
+                  ? Colors.grey[800]
+                  : const Color.fromRGBO(80, 255, 53, 1),
+            ),
+            child: ListTile(
+              leading: Icon(
+                _todoList[index].contains("(완료)")
+                    ? Icons.check_circle
+                    : Icons.circle,
+                color: Colors.white,
+              ),
+              title: Text(
+                _todoList[index],
+                style: TextStyle(
+                  color: _todoList[index].contains("(완료)")
+                      ? Colors.white
+                      : Colors.black,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
           ),
         );
       },

@@ -17,6 +17,7 @@ class SubjectTimerProvider with ChangeNotifier {
   // 진행상황 계산 (progress)
   double get progress {
     if (_elapsedTimes.isEmpty) return 0.0;
+    // Custom logic for progress calculation can go here
     return 1.0;
   }
 
@@ -32,7 +33,7 @@ class SubjectTimerProvider with ChangeNotifier {
     if (savedTimesJson != null) {
       final savedTimes = json.decode(savedTimesJson) as Map<String, dynamic>;
       savedTimes.forEach((subjectName, elapsedTime) {
-        _timers[subjectName] = Stopwatch(); // 타이머 초기화
+        _timers[subjectName] = Stopwatch();
         _elapsedTimes[subjectName] = elapsedTime;
       });
     }
@@ -44,8 +45,36 @@ class SubjectTimerProvider with ChangeNotifier {
     if (!_timers.containsKey(subjectName)) {
       _timers[subjectName] = Stopwatch();
       _elapsedTimes[subjectName] = "00:00:00";
+      _subjects.add(subjectName); // 과목 리스트에 추가
       _saveTimers();
       notifyListeners();
+    }
+  }
+
+  // 과목 삭제
+  void deleteSubject(int index) {
+    if (index >= 0 && index < _subjects.length) {
+      final subjectName = _subjects[index];
+      _timers.remove(subjectName);
+      _elapsedTimes.remove(subjectName);
+      _subjects.removeAt(index);
+      _saveTimers();
+      notifyListeners();
+    }
+  }
+
+  // 과목 이름 수정
+  void editSubject(int index, String newName) {
+    if (index >= 0 && index < _subjects.length) {
+      final oldName = _subjects[index];
+      if (oldName != newName) {
+        // 데이터 업데이트
+        _timers[newName] = _timers.remove(oldName)!;
+        _elapsedTimes[newName] = _elapsedTimes.remove(oldName)!;
+        _subjects[index] = newName;
+        _saveTimers();
+        notifyListeners();
+      }
     }
   }
 
@@ -55,7 +84,7 @@ class SubjectTimerProvider with ChangeNotifier {
       final stopwatch = _timers[subjectName]!;
       if (!stopwatch.isRunning) {
         stopwatch.start();
-        _updateTimers[subjectName] ??= Timer.periodic(
+        _updateTimers[subjectName] = Timer.periodic(
           const Duration(seconds: 1),
               (_) => _updateElapsedTime(subjectName),
         );
@@ -71,7 +100,6 @@ class SubjectTimerProvider with ChangeNotifier {
       if (stopwatch.isRunning) {
         stopwatch.stop();
         _updateTimers[subjectName]?.cancel();
-        _updateTimers.remove(subjectName);
         _saveTimers();
         notifyListeners();
       }
